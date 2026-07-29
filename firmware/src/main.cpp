@@ -2,7 +2,7 @@
 
 namespace {
 constexpr unsigned long SERIAL_BAUD_RATE = 115200;
-constexpr unsigned long HEARTBEAT_INTERVAL_MS = 1000;
+constexpr unsigned long HEARTBEAT_INTERVAL_MS = 250;
 constexpr char STARTUP_MESSAGE[] = "AURA MILESTONE 1 STARTUP: ESP32 ONLINE";
 constexpr char HEARTBEAT_MESSAGE[] = "AURA HEARTBEAT";
 
@@ -19,6 +19,6 @@ void loop() {
 
   if (currentTimeMs - lastHeartbeatMs >= HEARTBEAT_INTERVAL_MS) {
     lastHeartbeatMs = currentTimeMs;
-    Serial.println(HEARTBEAT_MESSAGE);
+    // Serial.println(HEARTBEAT_MESSAGE);
   }
 }
