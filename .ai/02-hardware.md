@@ -10,7 +10,7 @@ The primary controller is an ESP32 development board with these reported charact
 - Built-in Wi-Fi and Bluetooth
 - 3.3 V GPIO logic
 
-The exact board definition and labels still need confirmation during hardware inspection.
+The provided photo confirms these reported characteristics. No DOIT branding is visible, so `esp32dev` is the current generic PlatformIO selection rather than a branded-board identification.
 
 ## Newly Purchased Modules
 

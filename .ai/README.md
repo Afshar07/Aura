@@ -2,6 +2,12 @@
 
 This directory is the durable project context for AI agents working on Aura. Read this file first, then load only the documents relevant to the current task.
 
+## Learning-First Principle (Non-Negotiable)
+
+Aura's primary goal includes deep embedded-systems learning, not merely shipping. Libraries, frameworks, and abstractions must not hide important concepts by default. When relevant, pause to explain the internals and why abstractions exist for SPI, I2C, UART, PWM, interrupts, DMA, timers, FreeRTOS, memory management, rendering pipelines, and protocols. The objective is understanding, not reimplementation: prefer mature libraries, and do not replace them without genuine engineering reasons.
+
+Introduce low-level detail gradually and only for the active milestone; avoid overwhelming or unrelated deep dives. Always distinguish **what we are using**, **what it does internally**, and **why we chose it**. Optimize decisions for maintainable product quality and increasing user understanding. Never accept “the library works” as sufficient reason to sacrifice understanding.
+
 ## Context Map
 
 | File | Read when working on |
