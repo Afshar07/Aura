@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" role="img" aria-labelledby="title desc">
+  <title id="title">Aura eye logo</title>
+  <desc id="desc">A stylized brown eye surrounded by a blue, violet and pink aura ring.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="43%" r="62%">
+      <stop offset="0" stop-color="#121831"/>
+      <stop offset=".55" stop-color="#070914"/>
+      <stop offset="1" stop-color="#020308"/>
+    </radialGradient>
+    <linearGradient id="aura" x1=".1" y1=".25" x2=".9" y2=".75">
+      <stop offset="0" stop-color="#18b8ff"/>
+      <stop offset=".48" stop-color="#7257ff"/>
+      <stop offset="1" stop-color="#ff4fc8"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="43%" cy="38%" r="58%">
+      <stop offset="0" stop-color="#ffd39b"/>
+      <stop offset=".22" stop-color="#b86d32"/>
+      <stop offset=".62" stop-color="#5a2d19"/>
+      <stop offset="1" stop-color="#1b0d09"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="eyeClip">
+      <path d="M245 337 Q480 168 715 337 Q480 510 245 337Z"/>
+    </clipPath>
+  </defs>
+  <rect width="960" height="720" fill="url(#bg)"/>
+  <circle cx="480" cy="332" r="260" fill="none" stroke="url(#aura)" stroke-width="18" opacity=".34" filter="url(#glow)"/>
+  <circle cx="480" cy="332" r="231" fill="none" stroke="url(#aura)" stroke-width="8" opacity=".9"/>
+  <path d="M220 337 Q480 135 740 337 Q480 535 220 337Z" fill="#f0d8cb" stroke="#171018" stroke-width="16"/>
+  <g clip-path="url(#eyeClip)">
+    <circle cx="480" cy="335" r="128" fill="url(#iris)"/>
+    <g stroke="#d6914e" stroke-width="5" opacity=".55">
+      <path d="M480 216v70M480 384v70M361 335h70M529 335h70M397 252l48 58M515 360l48 58M397 418l48-58M515 310l48-58"/>
+    </g>
+    <circle cx="480" cy="335" r="53" fill="#080707"/>
+    <circle cx="444" cy="292" r="24" fill="#fff" opacity=".92"/>
+    <circle cx="515" cy="374" r="10" fill="#ffd8be" opacity=".5"/>
+  </g>
+  <path d="M225 337 Q480 132 735 337" fill="none" stroke="#171018" stroke-width="22" stroke-linecap="round"/>
+  <path d="M250 230 Q455 120 690 215" fill="none" stroke="#24151b" stroke-width="28" stroke-linecap="round"/>
+  <g stroke="#24151b" stroke-width="8" stroke-linecap="round">
+    <path d="M255 285l-44-30M278 263l-36-42M309 242l-26-50M651 245l28-49M682 267l37-42M706 292l45-31"/>
+  </g>
+  <text x="480" y="650" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="700" letter-spacing="18" fill="url(#aura)" filter="url(#glow)">AURA</text>
+</svg>
