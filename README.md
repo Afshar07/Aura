@@ -1,8 +1,12 @@
 # Aura
 
-Aura is a smart desktop companion built around an ESP32.
+<p align="center">
+  <img src="assets/aura-logo.svg" alt="Aura logo" width="240" />
+</p>
 
-The project combines embedded firmware, a small display, environmental sensors, ambient lighting, physical controls, and eventually a desktop companion app.
+<p align="center"><strong>A smart desktop companion built around an ESP32.</strong></p>
+
+Aura combines embedded firmware, a small display, environmental sensors, ambient lighting, physical controls, and eventually a desktop companion app.
 
 ## Current status
 
