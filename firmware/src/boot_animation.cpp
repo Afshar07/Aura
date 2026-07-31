@@ -7,7 +7,7 @@ namespace
 {
 constexpr int REVEAL_STEP_HEIGHT = 8;
 constexpr unsigned long REVEAL_STEP_DELAY_MS = 18;
-constexpr unsigned long LOGO_HOLD_MS = 5000;
+constexpr unsigned long LOGO_HOLD_MS = 1500;
 constexpr unsigned long EXIT_STEP_DELAY_MS = 10;
 
 void revealLogo(Adafruit_ST7789& display)
