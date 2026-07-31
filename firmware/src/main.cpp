@@ -2,6 +2,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
+#include "boot_animation.h"
 
 constexpr int TFT_CS_PIN = 5;
 constexpr int TFT_DC_PIN = 16;
@@ -35,10 +36,9 @@ constexpr unsigned long LOOK_INTERVAL_MIN_MS = 900;
 constexpr unsigned long LOOK_INTERVAL_MAX_MS = 2400;
 
 Adafruit_ST7789 display(
-  TFT_CS_PIN,
-  TFT_DC_PIN,
-  TFT_RESET_PIN
-);
+    TFT_CS_PIN,
+    TFT_DC_PIN,
+    TFT_RESET_PIN);
 
 // Render both eyes into RAM before sending them to the TFT.
 GFXcanvas16 faceCanvas(FACE_WIDTH, FACE_HEIGHT);
@@ -59,9 +59,8 @@ bool isBlinking = false;
 unsigned long randomLookInterval()
 {
   return random(
-    LOOK_INTERVAL_MIN_MS,
-    LOOK_INTERVAL_MAX_MS
-  );
+      LOOK_INTERVAL_MIN_MS,
+      LOOK_INTERVAL_MAX_MS);
 }
 
 unsigned long randomBlinkInterval()
@@ -102,8 +101,8 @@ float getBlinkAmount()
   }
 
   const float progress =
-    static_cast<float>(elapsed) /
-    static_cast<float>(blinkDuration);
+      static_cast<float>(elapsed) /
+      static_cast<float>(blinkDuration);
 
   if (progress < 0.5f)
   {
@@ -114,61 +113,55 @@ float getBlinkAmount()
 }
 
 void drawEye(
-  GFXcanvas16& canvas,
-  const int eyeX,
-  const float lookX,
-  const float lookY,
-  const float blinkAmount
-)
+    GFXcanvas16 &canvas,
+    const int eyeX,
+    const float lookX,
+    const float lookY,
+    const float blinkAmount)
 {
   canvas.fillRoundRect(
-    eyeX,
-    EYE_Y,
-    EYE_WIDTH,
-    EYE_HEIGHT,
-    EYE_RADIUS,
-    ST77XX_WHITE
-  );
+      eyeX,
+      EYE_Y,
+      EYE_WIDTH,
+      EYE_HEIGHT,
+      EYE_RADIUS,
+      ST77XX_WHITE);
 
   const int pupilCenterX =
-    eyeX +
-    EYE_WIDTH / 2 +
-    static_cast<int>(lookX * PUPIL_MOVE_X);
+      eyeX +
+      EYE_WIDTH / 2 +
+      static_cast<int>(lookX * PUPIL_MOVE_X);
 
   const int pupilCenterY =
-    EYE_Y +
-    EYE_HEIGHT / 2 +
-    static_cast<int>(lookY * PUPIL_MOVE_Y);
+      EYE_Y +
+      EYE_HEIGHT / 2 +
+      static_cast<int>(lookY * PUPIL_MOVE_Y);
 
   canvas.fillCircle(
-    pupilCenterX,
-    pupilCenterY,
-    PUPIL_RADIUS,
-    ST77XX_BLACK
-  );
+      pupilCenterX,
+      pupilCenterY,
+      PUPIL_RADIUS,
+      ST77XX_BLACK);
 
   const int eyelidHeight =
-    static_cast<int>(
-      blinkAmount * EYE_HEIGHT / 2
-    );
+      static_cast<int>(
+          blinkAmount * EYE_HEIGHT / 2);
 
   if (eyelidHeight > 0)
   {
     canvas.fillRect(
-      eyeX,
-      EYE_Y,
-      EYE_WIDTH,
-      eyelidHeight,
-      ST77XX_BLACK
-    );
+        eyeX,
+        EYE_Y,
+        EYE_WIDTH,
+        eyelidHeight,
+        ST77XX_BLACK);
 
     canvas.fillRect(
-      eyeX,
-      EYE_Y + EYE_HEIGHT - eyelidHeight,
-      EYE_WIDTH,
-      eyelidHeight,
-      ST77XX_BLACK
-    );
+        eyeX,
+        EYE_Y + EYE_HEIGHT - eyelidHeight,
+        EYE_WIDTH,
+        eyelidHeight,
+        ST77XX_BLACK);
   }
 }
 
@@ -180,29 +173,26 @@ void drawFace()
   faceCanvas.fillScreen(ST77XX_BLACK);
 
   drawEye(
-    faceCanvas,
-    LEFT_EYE_X,
-    currentLookX,
-    currentLookY,
-    blinkAmount
-  );
+      faceCanvas,
+      LEFT_EYE_X,
+      currentLookX,
+      currentLookY,
+      blinkAmount);
 
   drawEye(
-    faceCanvas,
-    RIGHT_EYE_X,
-    currentLookX,
-    currentLookY,
-    blinkAmount
-  );
+      faceCanvas,
+      RIGHT_EYE_X,
+      currentLookX,
+      currentLookY,
+      blinkAmount);
 
   // Transfer the completed frame to the TFT.
   display.drawRGBBitmap(
-    FACE_X,
-    FACE_Y,
-    faceCanvas.getBuffer(),
-    FACE_WIDTH,
-    FACE_HEIGHT
-  );
+      FACE_X,
+      FACE_Y,
+      faceCanvas.getBuffer(),
+      FACE_WIDTH,
+      FACE_HEIGHT);
 }
 
 void updateEyeMovement()
@@ -210,12 +200,12 @@ void updateEyeMovement()
   constexpr float movementSpeed = 0.12f;
 
   currentLookX +=
-    (targetLookX - currentLookX) *
-    movementSpeed;
+      (targetLookX - currentLookX) *
+      movementSpeed;
 
   currentLookY +=
-    (targetLookY - currentLookY) *
-    movementSpeed;
+      (targetLookY - currentLookY) *
+      movementSpeed;
 }
 
 void setup()
@@ -228,18 +218,21 @@ void setup()
   randomSeed(analogRead(34));
 
   SPI.begin(
-    TFT_SCK_PIN,
-    -1,
-    TFT_MOSI_PIN,
-    TFT_CS_PIN
-  );
+      TFT_SCK_PIN,
+      -1,
+      TFT_MOSI_PIN,
+      TFT_CS_PIN);
 
   display.init(TFT_WIDTH, TFT_HEIGHT);
   display.setRotation(0);
   display.fillScreen(ST77XX_BLACK);
 
+  playBootAnimation(display);
+
   nextLookTime = millis() + 800;
   nextBlinkTime = millis() + 1800;
+
+  drawFace();
 
   drawFace();
 
