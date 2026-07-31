@@ -2,7 +2,7 @@
   "folders": [
     {
       "name": "Firmware",
-      "path": "firmware"
+      "path": "firmware",
     },
     // {
     //   "name": "Docs",
@@ -13,8 +13,12 @@
     //   "path": "hardware"
     // },
     {
+      "name": "Assets",
+      "path": "assets"
+    },
+    {
       "name": "Project Context",
-      "path": ".ai"
-    }
-  ]
+      "path": ".ai",
+    },
+  ],
 }
