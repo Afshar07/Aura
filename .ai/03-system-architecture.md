@@ -123,10 +123,12 @@ aura/
 |   |-- include/
 |   |   |-- aura_boot_logo.h
 |   |   |-- aura_face.h
+|   |   |-- aura_buzzer.h
 |   |   |-- aura_protocol.h
 |   |   `-- boot_animation.h
 |   |-- src/
 |   |   |-- aura_face.cpp
+|   |   |-- aura_buzzer.cpp
 |   |   |-- aura_protocol.cpp
 |   |   |-- boot_animation.cpp
 |   |   `-- main.cpp
@@ -147,6 +149,7 @@ Current firmware responsibilities are intentionally small:
 - `main.cpp` configures SPI and the ST7789 display, coordinates parsed host events, plays the boot animation, and updates the face.
 - `boot_animation.*` owns the startup logo animation.
 - `aura_face.*` owns idle, loading, waiting, and error eye rendering, movement, and blinking.
+- `aura_buzzer.*` owns the non-blocking GPIO25 passive-buzzer chime.
 - `aura_protocol.*` owns bounded, non-blocking parsing of newline-delimited serial commands and legacy command compatibility.
 - `aura_boot_logo.h` stores the generated RGB565 boot-logo bitmap in program memory.
 - `platformio.ini` configures the generic `esp32dev` Arduino environment and Adafruit GFX/ST7789 dependencies.
@@ -180,6 +183,15 @@ states continue through the legacy `/state` endpoint during migration.
 replacing the current state, activity, or permission expression. Visual lifecycle
 timestamps are refreshed only by state, activity, attention, and heartbeat
 commands; metric, progress, and summary messages do not prolong an old face.
+
+Action-required attention names are `PERMISSION`, `USER_INPUT`, `CONFIRMATION`,
+`AUTHENTICATION`, and `MANUAL_ACTION`. Each enters the waiting face and plays one
+short chime per unresolved attention kind. Heartbeats and ordinary processing are
+silent. OpenCode currently provides confirmed automatic mappings for permission
+and question/user-input events; the remaining attention names are available to
+other producers through `/event` without guessing undocumented OpenCode events.
+The compile-time `BUZZER_ENABLED` constant in `firmware/src/main.cpp` can disable
+all buzzer initialization and playback without unplugging the module.
 
 The bridge uses the cross-platform `serialport` package, discovers the CP210x adapter by USB vendor ID, and supports `AURA_SERIAL_PORT` as an explicit override. It owns the serial connection so individual OpenCode events do not repeatedly open the port and reset the ESP32.
 

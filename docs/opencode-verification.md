@@ -86,6 +86,10 @@ exit waiting, and stopping the host must still return Aura to idle.
   route during migration.
 - The generic `/event` route currently drives the permission workflow; later
   tool, diagnostic, progress, and summary behavior is not implemented yet.
+- Confirmed OpenCode permission and question events trigger the action-required
+  buzzer. Confirmation, authentication, and manual-action attention commands are
+  supported through `/event`, but OpenCode has no confirmed generic event names
+  for them yet.
 - Only one current state is retained; duplicate state events are suppressed.
 - The bridge requires the serial device to be present and accessible. Linux
   users may need serial-device permissions (commonly the `dialout` group).

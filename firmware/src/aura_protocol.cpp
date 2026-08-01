@@ -8,6 +8,7 @@ using aura_protocol::Category;
 using aura_protocol::ParseResult;
 using aura_protocol::State;
 using aura_protocol::Activity;
+using aura_protocol::Attention;
 
 bool equalsIgnoreCase(const char *left, const char *right)
 {
@@ -142,8 +143,15 @@ ParseResult parseLine(const char *line)
 
   if (equalsIgnoreCase(tokens[1], "ATTENTION"))
   {
+    if (tokenCount != 3) return result;
     result.category = Category::Attention;
-    result.accepted = tokenCount == 3 && equalsIgnoreCase(tokens[2], "PERMISSION");
+    if (equalsIgnoreCase(tokens[2], "PERMISSION")) result.attention = Attention::Permission;
+    else if (equalsIgnoreCase(tokens[2], "USER_INPUT")) result.attention = Attention::UserInput;
+    else if (equalsIgnoreCase(tokens[2], "CONFIRMATION")) result.attention = Attention::Confirmation;
+    else if (equalsIgnoreCase(tokens[2], "AUTHENTICATION")) result.attention = Attention::Authentication;
+    else if (equalsIgnoreCase(tokens[2], "MANUAL_ACTION")) result.attention = Attention::ManualAction;
+    else return ParseResult{};
+    result.accepted = true;
     return result.accepted ? result : ParseResult{};
   }
 

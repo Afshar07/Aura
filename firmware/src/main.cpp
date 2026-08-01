@@ -6,12 +6,15 @@
 #include "aura_face.h"
 #include "boot_animation.h"
 #include "aura_protocol.h"
+#include "aura_buzzer.h"
 
 namespace
 {
   constexpr int TFT_CS_PIN = 5;
   constexpr int TFT_DC_PIN = 16;
   constexpr int TFT_RESET_PIN = 17;
+  constexpr int BUZZER_PIN = 25;
+  constexpr bool BUZZER_ENABLED = true;
 
   constexpr int TFT_SCK_PIN = 18;
   constexpr int TFT_MOSI_PIN = 23;
@@ -28,11 +31,14 @@ Adafruit_ST7789 display(
     TFT_RESET_PIN);
 
 AuraFace auraFace(display);
+AuraBuzzer auraBuzzer(BUZZER_PIN);
 
 namespace
 {
   unsigned long lastSerialStateTime = 0;
   aura_protocol::Parser serialParser;
+  bool attentionLatched = false;
+  aura_protocol::Attention latchedAttention = aura_protocol::Attention::Unknown;
 
   const char *stateName(const aura_protocol::State state)
   {
@@ -62,6 +68,19 @@ namespace
     }
   }
 
+  const char *attentionName(const aura_protocol::Attention attention)
+  {
+    switch (attention)
+    {
+      case aura_protocol::Attention::Permission: return "permission";
+      case aura_protocol::Attention::UserInput: return "user_input";
+      case aura_protocol::Attention::Confirmation: return "confirmation";
+      case aura_protocol::Attention::Authentication: return "authentication";
+      case aura_protocol::Attention::ManualAction: return "manual_action";
+      default: return "unknown";
+    }
+  }
+
   void applySerialEvent(const aura_protocol::ParseResult &event)
   {
     if (!event.accepted)
@@ -83,15 +102,27 @@ namespace
           auraFace.setState(AuraFace::State::Loading);
         Serial.print("Aura event: state/");
         Serial.println(stateName(event.state));
+        if (event.state != aura_protocol::State::Waiting) attentionLatched = false;
         break;
       case aura_protocol::Category::Activity:
         auraFace.setState(AuraFace::State::Loading);
         Serial.print("Aura event: activity/");
         Serial.println(activityName(event.activity));
+        attentionLatched = false;
         break;
       case aura_protocol::Category::Attention:
         auraFace.setState(AuraFace::State::Waiting);
-        Serial.println("Aura event: attention/permission");
+        Serial.print("Aura event: attention/");
+        Serial.println(attentionName(event.attention));
+        if (!attentionLatched || latchedAttention != event.attention)
+        {
+          if (BUZZER_ENABLED)
+          {
+            auraBuzzer.playChime();
+          }
+          attentionLatched = true;
+          latchedAttention = event.attention;
+        }
         break;
       case aura_protocol::Category::Heartbeat:
         break;
@@ -141,6 +172,10 @@ void setup()
   playBootAnimation(display);
 
   auraFace.begin();
+  if (BUZZER_ENABLED)
+  {
+    auraBuzzer.begin();
+  }
 
   Serial.println("Aura is alive.");
 }
@@ -155,9 +190,14 @@ void loop()
   )
   {
     auraFace.setState(AuraFace::State::Idle);
+    attentionLatched = false;
     lastSerialStateTime = 0;
     Serial.println("Aura host timeout");
   }
 
   auraFace.update();
+  if (BUZZER_ENABLED)
+  {
+    auraBuzzer.update();
+  }
 }

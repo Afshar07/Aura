@@ -1,5 +1,6 @@
 const STATES = new Set(["idle", "thinking", "working", "waiting", "error", "success"]);
 const ACTIVITIES = new Set(["read", "search", "edit", "shell", "test", "other"]);
+const ATTENTIONS = new Set(["permission", "user_input", "confirmation", "authentication", "manual_action"]);
 
 function requiredName(value, category) {
   if (typeof value !== "string" || value.length === 0) {
@@ -35,7 +36,7 @@ export function normalizeEvent(event) {
     return { category, name: normalized };
   }
   if (category === "attention") {
-    if (name !== "permission") throw new Error(`Unknown attention name: ${event.name}`);
+    if (!ATTENTIONS.has(name)) throw new Error(`Unknown attention name: ${event.name}`);
     return { category, name };
   }
   if (category === "metric") {
@@ -73,4 +74,4 @@ export function heartbeatLine() {
   return "AURA:HEARTBEAT";
 }
 
-export { ACTIVITIES, STATES };
+export { ACTIVITIES, ATTENTIONS, STATES };

@@ -42,11 +42,22 @@ enum class Activity
   Unknown,
 };
 
+enum class Attention
+{
+  Permission,
+  UserInput,
+  Confirmation,
+  Authentication,
+  ManualAction,
+  Unknown,
+};
+
 struct ParseResult
 {
   Category category = Category::Unknown;
   State state = State::Unknown;
   Activity activity = Activity::Unknown;
+  Attention attention = Attention::Unknown;
   uint32_t value = 0;
   uint32_t completed = 0;
   uint32_t total = 0;

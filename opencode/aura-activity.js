@@ -1,145 +1,255 @@
 const BRIDGE_BASE_URL = "http://127.0.0.1:43110";
 const REQUEST_TIMEOUT_MS = 300;
-const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
-const configuredLogLevel = process.env.AURA_LOG_LEVEL?.toLowerCase() ?? "warn";
-const logLevel = LOG_LEVELS[configuredLogLevel] ?? LOG_LEVELS.warn;
+
+const LOG_LEVELS = {
+  silent: 0,
+  error: 1,
+  warn: 2,
+  info: 3,
+  debug: 4,
+};
+
+const configuredLogLevel =
+  process.env.AURA_LOG_LEVEL?.toLowerCase() ?? "warn";
+
+const logLevel =
+  LOG_LEVELS[configuredLogLevel] ?? LOG_LEVELS.warn;
 
 /**
- * Converts an OpenCode event into the small state vocabulary understood by the bridge.
- *
- * @param {{ type?: string, properties?: { status?: { type?: string } } }} event
- * @returns {"BUSY"|"IDLE"|"ERROR"|undefined}
+ * @typedef {"BUSY" | "IDLE" | "ERROR" | "WORKING"} TAuraState
  */
-export function stateForEvent(event) {
-  if (event.type === "session.idle") return "IDLE";
-  if (event.type === "session.error") return "ERROR";
+
+/**
+ * @typedef {{
+ *   category: string;
+ *   name: string;
+ * }} IAuraEvent
+ */
+
+/**
+ * @typedef {{
+ *   type?: string;
+ *   properties?: {
+ *     status?: {
+ *       type?: string;
+ *     };
+ *   };
+ * }} IOpenCodeEvent
+ */
+
+/**
+ * @param {"error" | "warn" | "info" | "debug"} level
+ * @param {string} message
+ */
+function log(level, message) {
+  if (LOG_LEVELS[level] > logLevel) return;
+
+  const writer =
+    level === "error"
+      ? console.error
+      : level === "warn"
+        ? console.warn
+        : console.log;
+
+  writer(`Aura plugin: ${message}`);
+}
+
+/**
+ * @param {number} timeoutMs
+ * @returns {{ signal: AbortSignal; dispose: () => void }}
+ */
+function createTimeoutSignal(timeoutMs) {
+  const controller = new AbortController();
+
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  timeoutId.unref?.();
+
+  return {
+    signal: controller.signal,
+    dispose: () => clearTimeout(timeoutId),
+  };
+}
+
+/**
+ * @param {IOpenCodeEvent} event
+ * @returns {TAuraState | undefined}
+ */
+function stateForEvent(event) {
+  if (event.type === "session.idle") {
+    return "IDLE";
+  }
+
+  if (event.type === "session.error") {
+    return "ERROR";
+  }
+
+  if (
+    event.type === "permission.replied" ||
+    event.type === "permission.v2.replied" ||
+    event.type === "question.replied" ||
+    event.type === "question.v2.replied" ||
+    event.type === "question.rejected" ||
+    event.type === "question.v2.rejected"
+  ) {
+    return "WORKING";
+  }
 
   if (event.type === "session.status") {
     const status = event.properties?.status?.type;
-    if (status === "busy" || status === "retry") return "BUSY";
-    if (status === "idle") return "IDLE";
+
+    if (status === "busy" || status === "retry") {
+      return "BUSY";
+    }
+
+    if (status === "idle") {
+      return "IDLE";
+    }
   }
 
   return undefined;
 }
 
-function log(level, message) {
-  if (LOG_LEVELS[level] > logLevel) return;
-  const writer = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
-  writer(`Aura plugin: ${message}`);
-}
-
 /**
- * Sends one state to the optional local bridge without allowing transport failures to escape.
- *
- * @param {"BUSY"|"IDLE"|"ERROR"|"WORKING"} state
- * @returns {Promise<void>}
+ * @param {IOpenCodeEvent} event
+ * @returns {IAuraEvent[]}
  */
-export async function sendState(state) {
-  try {
-    const response = await fetch(`${BRIDGE_BASE_URL}/state`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ state }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-
-    if (!response.ok) log("warn", `bridge rejected ${state} (${response.status}).`);
-  } catch (error) {
-    log("warn", `bridge unavailable (${error instanceof Error ? error.message : "request failed"}).`);
-  }
-}
-
-/**
- * Sends one generic event to the optional local bridge without blocking OpenCode.
- *
- * @param {{ category: string, name: string }} event
- * @returns {Promise<void>}
- */
-export async function sendEvent(event) {
-  try {
-    const response = await fetch(`${BRIDGE_BASE_URL}/event`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(event),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      log("warn", `bridge rejected ${event.category}/${event.name} (${response.status}).`);
-      return;
-    }
-
-  } catch (error) {
-    log("warn", `bridge unavailable (${error instanceof Error ? error.message : "request failed"}).`);
-  }
-}
-
-export function eventMappingsForEvent(event) {
-  if (event.type === "permission.asked") {
+function eventMappingsForEvent(event) {
+  if (
+    event.type === "permission.asked" ||
+    event.type === "permission.v2.asked"
+  ) {
     return [
-      { category: "attention", name: "permission" },
-      { category: "state", name: "waiting" },
+      {
+        category: "attention",
+        name: "permission",
+      },
     ];
   }
 
-  if (event.type === "permission.replied") {
-    return [{ category: "state", name: "working" }];
+  if (
+    event.type === "question.asked" ||
+    event.type === "question.v2.asked"
+  ) {
+    return [
+      {
+        category: "attention",
+        name: "user_input",
+      },
+    ];
   }
 
   return [];
 }
 
 /**
- * Creates an OpenCode plugin with isolated lifecycle state and injectable bridge transports.
- *
- * @param {{ sendEvent?: (event: { category: string, name: string }) => Promise<void>, sendState?: (state: "BUSY"|"IDLE"|"ERROR"|"WORKING") => Promise<void> }} [transports]
- * @returns {Promise<{ event: ({ event }: { event: { type?: string, properties?: { status?: { type?: string } } } }) => Promise<void> }>}
+ * @param {TAuraState} state
+ * @returns {Promise<void>}
  */
-export const createAuraActivityPlugin = async ({
-  sendEvent: sendEventTransport = sendEvent,
-  sendState: sendStateTransport = sendState,
-} = {}) => {
+async function sendState(state) {
+  const timeout = createTimeoutSignal(REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${BRIDGE_BASE_URL}/state`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ state }),
+      signal: timeout.signal,
+    });
+
+    if (!response.ok) {
+      log(
+        "warn",
+        `bridge rejected state ${state} (${response.status}).`,
+      );
+    }
+  } catch (error) {
+    log(
+      "debug",
+      `bridge unavailable (${
+        error instanceof Error ? error.message : "request failed"
+      }).`,
+    );
+  } finally {
+    timeout.dispose();
+  }
+}
+
+/**
+ * @param {IAuraEvent} event
+ * @returns {Promise<void>}
+ */
+async function sendEvent(event) {
+  const timeout = createTimeoutSignal(REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${BRIDGE_BASE_URL}/event`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(event),
+      signal: timeout.signal,
+    });
+
+    if (!response.ok) {
+      log(
+        "warn",
+        `bridge rejected ${event.category}/${event.name} (${response.status}).`,
+      );
+    }
+  } catch (error) {
+    log(
+      "debug",
+      `bridge unavailable (${
+        error instanceof Error ? error.message : "request failed"
+      }).`,
+    );
+  } finally {
+    timeout.dispose();
+  }
+}
+
+/**
+ * This must be the only exported function in this plugin file.
+ *
+ * @returns {Promise<{
+ *   event: ({ event }: { event: IOpenCodeEvent }) => Promise<void>;
+ * }>}
+ */
+export const AuraActivityPlugin = async () => {
+  /** @type {TAuraState | undefined} */
   let lastState;
-  let lastEventKey;
-  let eventQueue = Promise.resolve();
-
-  const handleEvent = async (event) => {
-    const eventKey = JSON.stringify(event);
-    if (eventKey === lastEventKey) return;
-    lastEventKey = eventKey;
-
-    const mappings = eventMappingsForEvent(event);
-    if (mappings.length > 0) {
-      for (const mappedEvent of mappings) {
-        try {
-          await sendEventTransport(mappedEvent);
-        } catch (error) {
-          log("warn", `bridge unavailable (${error instanceof Error ? error.message : "request failed"}).`);
-        }
-      }
-      return;
-    }
-
-    const state = stateForEvent(event);
-    if (!state || state === lastState) return;
-
-    lastState = state;
-    log("info", `state ${state}.`);
-    try {
-      await sendStateTransport(state);
-    } catch (error) {
-      log("warn", `bridge unavailable (${error instanceof Error ? error.message : "request failed"}).`);
-    }
-  };
 
   return {
-    event: ({ event }) => {
-      const task = eventQueue.then(() => handleEvent(event));
-      eventQueue = task.catch(() => {});
-      return task.catch(() => {});
+    event: async ({ event }) => {
+      const mappedEvents = eventMappingsForEvent(event);
+
+      /*
+       * Do not await bridge traffic.
+       *
+       * OpenCode currently invokes event hooks without awaiting their returned
+       * promises, but explicit fire-and-forget keeps the plugin's intention
+       * clear and prevents future hook behavior from blocking on the bridge.
+       */
+      for (const mappedEvent of mappedEvents) {
+        void sendEvent(mappedEvent);
+      }
+
+      const state = stateForEvent(event);
+
+      if (!state || state === lastState) {
+        return;
+      }
+
+      lastState = state;
+      log("info", `state ${state}.`);
+
+      void sendState(state);
     },
   };
 };
-
-export const AuraActivityPlugin = createAuraActivityPlugin;

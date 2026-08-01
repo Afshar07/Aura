@@ -68,6 +68,12 @@ Expect mechanical bounce and handle it deliberately.
 - Passive buzzer
 - Requires a generated waveform; it cannot simply be switched on like an active buzzer
 - Possible uses: startup chime, UI feedback, timer sound, warnings, and short melodies
+- The current 3.3 V-compatible module is wired `GND -> GND`, `I/O -> GPIO 25`,
+  and `VCC -> 3V3`.
+- The first integrated behavior is one short, non-blocking chime for a new
+  action-required attention event. Ordinary processing remains silent.
+- Set `BUZZER_ENABLED` to `false` in `firmware/src/main.cpp` and upload again to
+  silence the module without changing its wiring.
 
 ## Existing Components
 

@@ -28,20 +28,40 @@ test("heartbeat does not replace activity", () => {
   assert.equal(lines.at(-1), "AURA:HEARTBEAT");
 });
 
-test("heartbeat does not replace permission state", () => {
+test("every attention enters and remains in the waiting lifecycle", () => {
   let clock = 100;
   const lines = [];
   const store = createStateStore({ now: () => clock, writer: (line) => lines.push(line), staleAfterMs: 10 });
-  store.apply({ category: "attention", name: "permission" });
-  const permissionAt = store.snapshot().lastActivityAt;
-  assert.equal(store.snapshot().state, "WAITING");
-  assert.equal(store.snapshot().attention, "permission");
-  clock = 105;
+  for (const name of ["permission", "user_input", "confirmation", "authentication", "manual_action"]) {
+    store.apply({ category: "attention", name });
+    assert.equal(store.snapshot().state, "WAITING");
+    assert.equal(store.snapshot().attention, name);
+  }
+  assert.deepEqual(lines, [
+    "AURA:ATTENTION:PERMISSION",
+    "AURA:ATTENTION:USER_INPUT",
+    "AURA:ATTENTION:CONFIRMATION",
+    "AURA:ATTENTION:AUTHENTICATION",
+    "AURA:ATTENTION:MANUAL_ACTION",
+  ]);
+  assert.equal(store.snapshot().lastActivityAt, clock);
   store.heartbeat();
-  assert.equal(store.snapshot().lastActivityAt, permissionAt);
   assert.equal(store.snapshot().state, "WAITING");
-  assert.equal(store.snapshot().attention, "permission");
   assert.equal(lines.at(-1), "AURA:HEARTBEAT");
+});
+
+test("suppresses duplicate attention lines but re-emits after working resolves waiting", () => {
+  const lines = [];
+  const store = createStateStore({ writer: (line) => lines.push(line) });
+  store.apply({ category: "attention", name: "manual_action" });
+  store.apply({ category: "attention", name: "manual_action" });
+  store.apply({ category: "state", name: "working" });
+  store.apply({ category: "attention", name: "manual_action" });
+  assert.deepEqual(lines, [
+    "AURA:ATTENTION:MANUAL_ACTION",
+    "AURA:STATE:WORKING",
+    "AURA:ATTENTION:MANUAL_ACTION",
+  ]);
 });
 
 test("permission reply state exits waiting", () => {

@@ -38,7 +38,10 @@ require manual re-copying; symlink installations follow this checkout.
 
 The plugin is best-effort: a stopped or offline bridge is ignored, and its
 short HTTP timeout cannot interrupt OpenCode. Session states continue to use
-`/state`; `permission.asked` sends generic JSON events to `/event` in the order
-`attention/permission`, then `state/waiting`. `permission.replied` sends
-`state/working` so Aura leaves the waiting state immediately. Duplicate
-lifecycle events are suppressed per plugin instance.
+`/state`. `permission.asked` (including `permission.v2.asked`) sends
+`attention/permission`; `question.asked` (including `question.v2.asked`) sends
+`attention/user_input`. Their replied events, plus question rejected events,
+send `state/working` so Aura leaves waiting immediately. Duplicate session state
+outputs are suppressed per plugin instance. Authentication, confirmation, and
+manual action have no confirmed OpenCode event contracts; trigger them through
+the bridge's `/event` manual calls instead of guessed plugin event names.

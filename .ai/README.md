@@ -18,6 +18,7 @@ Introduce low-level detail gradually and only for the active milestone; avoid ov
 | [04-roadmap.md](./04-roadmap.md) | Current sequencing, milestones, and deciding what to build next |
 | [05-engineering-standards.md](./05-engineering-standards.md) | Code conventions, implementation principles, and design decisions |
 | [06-agent-guidelines.md](./06-agent-guidelines.md) | How to explain, plan, and collaborate with the user |
+| [testing.md](./testing.md) | Node, OpenCode plugin, bridge, and firmware verification conventions |
 
 ## Usage Rules
 
