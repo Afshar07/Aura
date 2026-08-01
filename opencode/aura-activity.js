@@ -229,6 +229,10 @@ export const AuraActivityPlugin = async () => {
     event: async ({ event }) => {
       const mappedEvents = eventMappingsForEvent(event);
 
+      if (mappedEvents.length > 0) {
+        lastState = undefined;
+      }
+
       /*
        * Do not await bridge traffic.
        *

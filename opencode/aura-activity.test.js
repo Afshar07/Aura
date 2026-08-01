@@ -116,6 +116,23 @@ test("maps attention and working lifecycle events without attention deduplicatio
   });
 });
 
+test("emits WORKING after each permission cycle on the same plugin instance", async () => {
+  await withMockFetch(async (calls) => {
+    const plugin = await AuraActivityPlugin();
+
+    await plugin.event({ event: { type: "permission.asked" } });
+    await plugin.event({ event: { type: "permission.replied" } });
+    await plugin.event({ event: { type: "permission.asked" } });
+    await plugin.event({ event: { type: "permission.replied" } });
+    await waitForFetchCalls(calls, 4);
+
+    assertPost(calls[0], "/event", { category: "attention", name: "permission" });
+    assertPost(calls[1], "/state", { state: "WORKING" });
+    assertPost(calls[2], "/event", { category: "attention", name: "permission" });
+    assertPost(calls[3], "/state", { state: "WORKING" });
+  });
+});
+
 test("ignores unknown events", async () => {
   await withMockFetch(async (calls) => {
     const plugin = await AuraActivityPlugin();
