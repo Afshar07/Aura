@@ -108,32 +108,46 @@ aura/
 |   `-- aura-logo.svg
 |-- bridge/
 |   |-- src/
-|   |   `-- index.js
+|   |   |-- index.js
+|   |   |-- protocol.js
+|   |   |-- serial-transport.js
+|   |   `-- state-store.js
+|   |-- test/
+|   |   |-- protocol.test.js
+|   |   `-- state-store.test.js
 |   |-- package-lock.json
 |   `-- package.json
+|-- docs/
+|   `-- opencode-verification.md
 |-- firmware/
 |   |-- include/
 |   |   |-- aura_boot_logo.h
 |   |   |-- aura_face.h
+|   |   |-- aura_protocol.h
 |   |   `-- boot_animation.h
 |   |-- src/
 |   |   |-- aura_face.cpp
+|   |   |-- aura_protocol.cpp
 |   |   |-- boot_animation.cpp
 |   |   `-- main.cpp
 |   |-- .gitignore
 |   `-- platformio.ini
+|-- opencode/
+|   |-- aura-activity.js
+|   `-- README.md
 |-- .gitignore
 |-- aura.code-workspace
 `-- README.md
 ```
 
-`firmware/` and the narrow OpenCode serial bridge are implemented application areas. `desktop/`, `docs/`, and `hardware/` remain part of the target shape and should be created only when an active milestone requires them.
+`firmware/`, the narrow OpenCode serial bridge, its tracked plugin, and its verification documentation are implemented application areas. `desktop/` and `hardware/` remain part of the target shape and should be created only when an active milestone requires them.
 
 Current firmware responsibilities are intentionally small:
 
-- `main.cpp` configures SPI and the ST7789 display, plays the boot animation, and updates the face.
+- `main.cpp` configures SPI and the ST7789 display, coordinates parsed host events, plays the boot animation, and updates the face.
 - `boot_animation.*` owns the startup logo animation.
-- `aura_face.*` owns eye rendering, movement, and blinking.
+- `aura_face.*` owns idle, loading, waiting, and error eye rendering, movement, and blinking.
+- `aura_protocol.*` owns bounded, non-blocking parsing of newline-delimited serial commands and legacy command compatibility.
 - `aura_boot_logo.h` stores the generated RGB565 boot-logo bitmap in program memory.
 - `platformio.ini` configures the generic `esp32dev` Arduino environment and Adafruit GFX/ST7789 dependencies.
 
@@ -157,6 +171,11 @@ AURA:OPENCODE:IDLE
 AURA:OPENCODE:ERROR
 ```
 
+These legacy commands remain accepted. The generic protocol now supports state,
+activity, permission attention, metric, todo progress, and file-summary messages.
+The active plugin currently uses generic permission events while ordinary session
+states continue through the legacy `/state` endpoint during migration.
+
 The bridge uses the cross-platform `serialport` package, discovers the CP210x adapter by USB vendor ID, and supports `AURA_SERIAL_PORT` as an explicit override. It owns the serial connection so individual OpenCode events do not repeatedly open the port and reset the ESP32.
 
-The OpenCode plugin is global rather than project-specific and listens for `session.status`, `session.idle`, and `session.error`. Bridge failures are ignored by the plugin so Aura cannot interrupt OpenCode. Heartbeat timeouts in both the bridge and firmware restore the idle face after a host crash or lost connection.
+The OpenCode plugin is installed globally but tracked under `opencode/` so it can be reviewed and reproduced. It listens for `session.status`, `session.idle`, `session.error`, `permission.asked`, and `permission.replied`. Bridge failures are ignored by the plugin so Aura cannot interrupt OpenCode. A permission request puts Aura into its distinct waiting face; heartbeat timeouts in both the bridge and firmware restore the idle face after a host crash or lost connection.

@@ -21,6 +21,7 @@ constexpr int PUPIL_MOVE_X = 13;
 constexpr int PUPIL_MOVE_Y = 18;
 
 constexpr float EYE_MOVEMENT_SPEED = 0.12f;
+constexpr float WAITING_MOVEMENT_SPEED = 0.025f;
 
 constexpr unsigned long FRAME_INTERVAL_MS = 30;
 
@@ -30,6 +31,8 @@ constexpr unsigned long LOOK_INTERVAL_MAX_MS = 2400;
 constexpr unsigned long BLINK_INTERVAL_MIN_MS = 2200;
 constexpr unsigned long BLINK_INTERVAL_MAX_MS = 5500;
 constexpr unsigned long BLINK_DURATION_MS = 220;
+constexpr unsigned long WAITING_BLINK_INTERVAL_MIN_MS = 3200;
+constexpr unsigned long WAITING_BLINK_INTERVAL_MAX_MS = 7000;
 
 constexpr float LOADING_CYCLE_MS = 1100.0f;
 constexpr float TWO_PI_RADIANS = 6.28318530718f;
@@ -70,6 +73,10 @@ void AuraFace::update()
   {
     updateLoadingMovement(now);
   }
+  else if (state_ == State::Waiting)
+  {
+    updateWaitingMovement(now);
+  }
   else if (state_ == State::Error)
   {
     currentLookX_ = 0.0f;
@@ -81,7 +88,7 @@ void AuraFace::update()
   }
 
   if (
-    state_ == State::Idle &&
+    (state_ == State::Idle || state_ == State::Waiting) &&
     !isBlinking_ &&
     hasTimeElapsed(now, nextBlinkTime_)
   )
@@ -119,6 +126,16 @@ void AuraFace::setState(const State state)
     const unsigned long now = millis();
     nextLookTime_ = now + 500;
     nextBlinkTime_ = now + 1500;
+  }
+  else if (state_ == State::Waiting)
+  {
+    const unsigned long now = millis();
+    currentLookX_ = 0.0f;
+    currentLookY_ = 0.0f;
+    targetLookX_ = 0.0f;
+    targetLookY_ = 0.0f;
+    nextLookTime_ = now + 3000;
+    nextBlinkTime_ = now + 2200;
   }
 }
 
@@ -159,20 +176,29 @@ void AuraFace::drawFace()
   const float blinkAmount = getBlinkAmount();
 
   faceCanvas_.fillScreen(ST77XX_BLACK);
+  const uint16_t eyeColor = state_ == State::Error ? ST77XX_RED : ST77XX_WHITE;
 
   drawEye(
     LEFT_EYE_X,
     currentLookX_,
     currentLookY_,
-    blinkAmount
+    blinkAmount,
+    eyeColor
   );
 
   drawEye(
     RIGHT_EYE_X,
     currentLookX_,
     currentLookY_,
-    blinkAmount
+    blinkAmount,
+    eyeColor
   );
+
+  if (state_ == State::Error)
+  {
+    faceCanvas_.fillRect(83, 39, 4, 23, ST77XX_YELLOW);
+    faceCanvas_.fillCircle(85, 70, 3, ST77XX_YELLOW);
+  }
 
   display_.drawRGBBitmap(
     FACE_X,
@@ -187,16 +213,17 @@ void AuraFace::drawEye(
   const int eyeX,
   const float lookX,
   const float lookY,
-  const float blinkAmount
+  const float blinkAmount,
+  const uint16_t eyeColor
 )
 {
   faceCanvas_.fillRoundRect(
     eyeX,
     EYE_Y,
     EYE_WIDTH,
-    EYE_HEIGHT,
+    state_ == State::Waiting ? 94 : EYE_HEIGHT,
     EYE_RADIUS,
-    ST77XX_WHITE
+    eyeColor
   );
 
   const int pupilCenterX =
@@ -206,7 +233,7 @@ void AuraFace::drawEye(
 
   const int pupilCenterY =
     EYE_Y +
-    EYE_HEIGHT / 2 +
+    (state_ == State::Waiting ? 94 : EYE_HEIGHT) / 2 +
     static_cast<int>(lookY * PUPIL_MOVE_Y);
 
   faceCanvas_.fillCircle(
@@ -219,7 +246,7 @@ void AuraFace::drawEye(
   const int eyelidHeight =
     static_cast<int>(
       blinkAmount *
-      static_cast<float>(EYE_HEIGHT) /
+      static_cast<float>(state_ == State::Waiting ? 94 : EYE_HEIGHT) /
       2.0f
     );
 
@@ -238,7 +265,7 @@ void AuraFace::drawEye(
 
   faceCanvas_.fillRect(
     eyeX,
-    EYE_Y + EYE_HEIGHT - eyelidHeight,
+      EYE_Y + (state_ == State::Waiting ? 94 : EYE_HEIGHT) - eyelidHeight,
     EYE_WIDTH,
     eyelidHeight,
     ST77XX_BLACK
@@ -288,10 +315,11 @@ unsigned long AuraFace::randomLookInterval() const
 
 unsigned long AuraFace::randomBlinkInterval() const
 {
-  return random(
-    BLINK_INTERVAL_MIN_MS,
-    BLINK_INTERVAL_MAX_MS
-  );
+  if (state_ == State::Waiting)
+  {
+    return random(WAITING_BLINK_INTERVAL_MIN_MS, WAITING_BLINK_INTERVAL_MAX_MS);
+  }
+  return random(BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS);
 }
 
 bool AuraFace::hasTimeElapsed(
@@ -311,4 +339,11 @@ void AuraFace::updateLoadingMovement(const unsigned long now)
   const float angle = cycleProgress * TWO_PI_RADIANS;
   currentLookX_ = cosf(angle);
   currentLookY_ = sinf(angle) * 0.75f;
+}
+
+void AuraFace::updateWaitingMovement(const unsigned long now)
+{
+  const float phase = static_cast<float>(now % 6000UL) / 6000.0f;
+  currentLookX_ += (sinf(phase * TWO_PI_RADIANS) * 0.08f - currentLookX_) * WAITING_MOVEMENT_SPEED;
+  currentLookY_ += (cosf(phase * TWO_PI_RADIANS) * 0.04f - currentLookY_) * WAITING_MOVEMENT_SPEED;
 }

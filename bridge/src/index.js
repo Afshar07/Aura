@@ -1,137 +1,51 @@
 import { createServer } from "node:http";
-import { SerialPort } from "serialport";
+import { createSerialTransport } from "./serial-transport.js";
+import { createStateStore } from "./state-store.js";
 
 const HOST = "127.0.0.1";
-const HTTP_PORT = Number.parseInt(process.env.AURA_BRIDGE_PORT ?? "43110", 10);
-const BAUD_RATE = 115200;
-const RECONNECT_DELAY_MS = 2000;
+const HTTP_PORT = Number(process.env.AURA_BRIDGE_PORT ?? "43110");
 const HEARTBEAT_INTERVAL_MS = 2000;
-const STALE_ACTIVITY_MS = 10000;
-const CP210X_VENDOR_ID = "10c4";
 
-let serialPort;
-let currentState = "IDLE";
-let lastActivityAt = 0;
+if (!Number.isInteger(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) throw new Error("AURA_BRIDGE_PORT must be an integer between 1 and 65535");
 
-function normalizeHex(value) {
-  return value?.toLowerCase().replace(/^0x/, "");
-}
-
-async function findAuraPort() {
-  if (process.env.AURA_SERIAL_PORT) {
-    return process.env.AURA_SERIAL_PORT;
-  }
-
-  const ports = await SerialPort.list();
-  const cp210xPort = ports.find(
-    (port) => normalizeHex(port.vendorId) === CP210X_VENDOR_ID,
-  );
-
-  return cp210xPort?.path;
-}
-
-function sendState() {
-  if (!serialPort?.isOpen) {
-    return;
-  }
-
-  serialPort.write(`AURA:OPENCODE:${currentState}\n`);
-}
-
-async function connectSerial() {
-  if (serialPort?.isOpen) {
-    return;
-  }
-
-  const path = await findAuraPort();
-
-  if (!path) {
-    console.warn("Aura bridge: CP210x serial device not found; retrying.");
-    return;
-  }
-
-  serialPort = new SerialPort({ path, baudRate: BAUD_RATE, autoOpen: false });
-
-  serialPort.on("error", (error) => {
-    console.error(`Aura bridge: serial error: ${error.message}`);
-  });
-
-  serialPort.on("close", () => {
-    console.warn("Aura bridge: serial connection closed; reconnecting.");
-  });
-
-  serialPort.open((error) => {
-    if (error) {
-      console.error(`Aura bridge: cannot open ${path}: ${error.message}`);
-      return;
-    }
-
-    console.log(`Aura bridge: connected to ${path} at ${BAUD_RATE} baud.`);
-    setTimeout(sendState, 1500);
-  });
-}
-
-function setState(state) {
-  currentState = state;
-  lastActivityAt = Date.now();
-  sendState();
-}
+const transport = createSerialTransport();
+const store = createStateStore({ writer: (line) => transport.write(line), log: console });
 
 function readRequestBody(request) {
   return new Promise((resolve, reject) => {
     let body = "";
-
+    let settled = false;
+    let tooLarge = false;
     request.on("data", (chunk) => {
+      if (tooLarge) return;
       body += chunk;
-
-      if (body.length > 1024) {
+      if (Buffer.byteLength(body) > 1024) {
+        tooLarge = true;
+        settled = true;
         reject(new Error("Request body is too large"));
-        request.destroy();
       }
     });
-
-    request.on("end", () => resolve(body));
-    request.on("error", reject);
+    request.on("end", () => { if (!settled) { settled = true; resolve(body); } });
+    request.on("error", (error) => { if (!settled) { settled = true; reject(error); } });
   });
 }
 
 const server = createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/health") {
     response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify({ state: currentState, serialConnected: serialPort?.isOpen ?? false }));
+    response.end(JSON.stringify({ ...store.snapshot(), serialConnected: transport.isConnected() }));
     return;
   }
-
-  if (request.method !== "POST" || request.url !== "/state") {
-    response.writeHead(404).end();
-    return;
-  }
-
+  if (request.method !== "POST" || !["/state", "/event"].includes(request.url)) { response.writeHead(404).end(); return; }
+  if (request.url === "/event" && request.headers["content-type"]?.split(";", 1)[0].trim() !== "application/json") { response.writeHead(415).end("Content-Type must be application/json"); return; }
   try {
     const body = JSON.parse(await readRequestBody(request));
-
-    if (!["BUSY", "IDLE", "ERROR"].includes(body.state)) {
-      response.writeHead(400).end("Invalid state");
-      return;
-    }
-
-    setState(body.state);
+    if (request.url === "/state") store.setLegacyState(body.state);
+    else store.apply(body);
     response.writeHead(204).end();
-  } catch (error) {
-    response.writeHead(400).end(error.message);
-  }
+  } catch (problem) { response.writeHead(400).end(problem.message); }
 });
 
-server.listen(HTTP_PORT, HOST, () => {
-  console.log(`Aura bridge: listening on http://${HOST}:${HTTP_PORT}.`);
-});
-
-await connectSerial();
-setInterval(connectSerial, RECONNECT_DELAY_MS);
-setInterval(() => {
-  if (currentState !== "IDLE" && Date.now() - lastActivityAt >= STALE_ACTIVITY_MS) {
-    currentState = "IDLE";
-  }
-
-  sendState();
-}, HEARTBEAT_INTERVAL_MS);
+server.listen(HTTP_PORT, HOST, () => console.log(`Aura bridge: listening on http://${HOST}:${HTTP_PORT}.`));
+transport.connect().catch((problem) => console.error(`Aura bridge: ${problem.message}`));
+setInterval(() => { store.heartbeat(); transport.connect().catch((problem) => console.error(`Aura bridge: ${problem.message}`)); }, HEARTBEAT_INTERVAL_MS);

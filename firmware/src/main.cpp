@@ -5,6 +5,7 @@
 
 #include "aura_face.h"
 #include "boot_animation.h"
+#include "aura_protocol.h"
 
 namespace
 {
@@ -30,26 +31,70 @@ AuraFace auraFace(display);
 
 namespace
 {
-  String serialCommand;
   unsigned long lastSerialStateTime = 0;
+  aura_protocol::Parser serialParser;
 
-  void applySerialCommand(const String& command)
+  const char *stateName(const aura_protocol::State state)
   {
-    if (command == "AURA:OPENCODE:BUSY")
+    switch (state)
     {
-      auraFace.setState(AuraFace::State::Loading);
+      case aura_protocol::State::Idle: return "idle";
+      case aura_protocol::State::Thinking: return "thinking";
+      case aura_protocol::State::Working: return "working";
+      case aura_protocol::State::Waiting: return "waiting";
+      case aura_protocol::State::Error: return "error";
+      case aura_protocol::State::Success: return "success";
+      default: return "unknown";
     }
-    else if (command == "AURA:OPENCODE:ERROR")
+  }
+
+  const char *activityName(const aura_protocol::Activity activity)
+  {
+    switch (activity)
     {
-      auraFace.setState(AuraFace::State::Error);
+      case aura_protocol::Activity::Read: return "read";
+      case aura_protocol::Activity::Search: return "search";
+      case aura_protocol::Activity::Edit: return "edit";
+      case aura_protocol::Activity::Shell: return "shell";
+      case aura_protocol::Activity::Test: return "test";
+      case aura_protocol::Activity::Other: return "other";
+      default: return "unknown";
     }
-    else if (command == "AURA:OPENCODE:IDLE")
+  }
+
+  void applySerialEvent(const aura_protocol::ParseResult &event)
+  {
+    if (!event.accepted)
     {
-      auraFace.setState(AuraFace::State::Idle);
-    }
-    else
-    {
+      Serial.println("Aura event rejected: malformed");
       return;
+    }
+
+    switch (event.category)
+    {
+      case aura_protocol::Category::State:
+        if (event.state == aura_protocol::State::Idle || event.state == aura_protocol::State::Success)
+          auraFace.setState(AuraFace::State::Idle);
+        else if (event.state == aura_protocol::State::Error)
+          auraFace.setState(AuraFace::State::Error);
+        else if (event.state == aura_protocol::State::Waiting)
+          auraFace.setState(AuraFace::State::Waiting);
+        else
+          auraFace.setState(AuraFace::State::Loading);
+        Serial.print("Aura event: state/");
+        Serial.println(stateName(event.state));
+        break;
+      case aura_protocol::Category::Activity:
+        auraFace.setState(AuraFace::State::Loading);
+        Serial.print("Aura event: activity/");
+        Serial.println(activityName(event.activity));
+        break;
+      case aura_protocol::Category::Attention:
+        auraFace.setState(AuraFace::State::Waiting);
+        Serial.println("Aura event: attention/permission");
+        break;
+      default:
+        break;
     }
 
     lastSerialStateTime = millis();
@@ -57,22 +102,10 @@ namespace
 
   void readSerialCommands()
   {
-    while (Serial.available() > 0)
+    aura_protocol::ParseResult event;
+    while (serialParser.process(Serial, event))
     {
-      const char character = static_cast<char>(Serial.read());
-
-      if (character == '\n')
-      {
-        serialCommand.trim();
-        applySerialCommand(serialCommand);
-        serialCommand = "";
-        continue;
-      }
-
-      if (serialCommand.length() < 64)
-      {
-        serialCommand += character;
-      }
+      applySerialEvent(event);
     }
   }
 }
@@ -115,6 +148,7 @@ void loop()
   {
     auraFace.setState(AuraFace::State::Idle);
     lastSerialStateTime = 0;
+    Serial.println("Aura host timeout");
   }
 
   auraFace.update();

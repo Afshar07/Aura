@@ -2,6 +2,7 @@
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
+#include <stdint.h>
 
 class AuraFace
 {
@@ -10,6 +11,7 @@ public:
     {
         Idle,
         Loading,
+        Waiting,
         Error,
     };
 
@@ -44,6 +46,7 @@ private:
     void startBlink();
     void updateEyeMovement();
     void updateLoadingMovement(unsigned long now);
+    void updateWaitingMovement(unsigned long now);
 
     void drawFace();
 
@@ -51,7 +54,8 @@ private:
         int eyeX,
         float lookX,
         float lookY,
-        float blinkAmount);
+        float blinkAmount,
+        uint16_t eyeColor);
 
     float getBlinkAmount();
 
