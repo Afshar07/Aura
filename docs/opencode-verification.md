@@ -68,15 +68,19 @@ The firmware independently returns to its idle face after **5 seconds** without
 a valid state command. The plugin's HTTP request timeout is intentionally
 short (300 ms), and bridge failures are ignored by OpenCode.
 
-The automatic timeout after stopping the bridge has **not yet been explicitly
-verified**. It still requires a test: select BUSY, stop the bridge, and observe
-whether the firmware returns to IDLE within its five-second valid-command
-timeout.
+The automatic timeout after stopping the bridge has been physically verified:
+Aura returns to IDLE within the firmware's five-second valid-command timeout.
+
+The generic permission workflow has also been physically verified. A permission
+event shows the distinct waiting face, and an error event shows red eyes with a
+yellow exclamation mark.
 
 ## Known limitations
 
-- The plugin sends only BUSY, IDLE, and ERROR through the legacy `/state` route.
-- `/event` and OpenCode permission integration are not implemented.
+- Session status still uses BUSY, IDLE, and ERROR through the legacy `/state`
+  route during migration.
+- The generic `/event` route currently drives the permission workflow; later
+  tool, diagnostic, progress, and summary behavior is not implemented yet.
 - Only one current state is retained; duplicate state events are suppressed.
 - The bridge requires the serial device to be present and accessible. Linux
   users may need serial-device permissions (commonly the `dialout` group).

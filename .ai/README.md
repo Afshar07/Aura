@@ -33,4 +33,6 @@ Introduce low-level detail gradually and only for the active milestone; avoid ov
 
 Aura has an implemented PlatformIO firmware project, shared logo asset, tracked OpenCode plugin, and cross-platform Node.js USB serial bridge. ESP32 and ST7789 code initializes the display, plays a boot animation, parses a bounded generic activity protocol, and renders an animated face with idle, OpenCode loading, permission-waiting, and red error states. The exact current repository tree and responsibilities are recorded in `03-system-architecture.md`.
 
+The permission-waiting face, red error face, legacy states, and host-disconnection fallback have been physically verified on the ESP32 and TFT.
+
 The desktop app, sensors, input, lighting, audio, networking, enclosure, and PCB remain future work. Later capabilities are product direction, not commitments to build everything now.
