@@ -75,6 +75,11 @@ The generic permission workflow has also been physically verified. A permission
 event shows the distinct waiting face, and an error event shows red eyes with a
 yellow exclamation mark.
 
+The bridge now sends `AURA:HEARTBEAT` for liveness instead of replaying the
+current visual state. This lifecycle patch still requires hardware verification:
+heartbeats must preserve activity and waiting faces, `permission.replied` must
+exit waiting, and stopping the host must still return Aura to idle.
+
 ## Known limitations
 
 - Session status still uses BUSY, IDLE, and ERROR through the legacy `/state`

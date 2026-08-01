@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { eventToLine, normalizeEvent } from "../src/protocol.js";
+import { eventToLine, heartbeatLine, normalizeEvent } from "../src/protocol.js";
 
 test("converts supported events to exact serial lines", () => {
+  assert.equal(heartbeatLine(), "AURA:HEARTBEAT");
   assert.equal(eventToLine({ category: "state", name: "working" }), "AURA:STATE:WORKING");
   assert.equal(eventToLine({ category: "activity", name: "read" }), "AURA:ACTIVITY:READ");
   assert.equal(eventToLine({ category: "attention", name: "permission" }), "AURA:ATTENTION:PERMISSION");
@@ -13,7 +14,7 @@ test("converts supported events to exact serial lines", () => {
 });
 
 test("accepts unknown activities with degraded normalization", () => {
-  assert.equal(normalizeEvent({ category: "activity", name: "deploy" }).name, "other");
+  assert.deepEqual(normalizeEvent({ category: "activity", name: "deploy" }), { category: "activity", name: "other" });
   assert.equal(eventToLine({ category: "activity", name: "deploy" }), "AURA:ACTIVITY:OTHER");
 });
 

@@ -176,6 +176,11 @@ activity, permission attention, metric, todo progress, and file-summary messages
 The active plugin currently uses generic permission events while ordinary session
 states continue through the legacy `/state` endpoint during migration.
 
+`AURA:HEARTBEAT` is non-visual: it refreshes firmware host liveness without
+replacing the current state, activity, or permission expression. Visual lifecycle
+timestamps are refreshed only by state, activity, attention, and heartbeat
+commands; metric, progress, and summary messages do not prolong an old face.
+
 The bridge uses the cross-platform `serialport` package, discovers the CP210x adapter by USB vendor ID, and supports `AURA_SERIAL_PORT` as an explicit override. It owns the serial connection so individual OpenCode events do not repeatedly open the port and reset the ESP32.
 
 The OpenCode plugin is installed globally but tracked under `opencode/` so it can be reviewed and reproduced. It listens for `session.status`, `session.idle`, `session.error`, `permission.asked`, and `permission.replied`. Bridge failures are ignored by the plugin so Aura cannot interrupt OpenCode. A permission request puts Aura into its distinct waiting face; heartbeat timeouts in both the bridge and firmware restore the idle face after a host crash or lost connection.

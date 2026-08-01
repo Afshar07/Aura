@@ -32,7 +32,7 @@ export function normalizeEvent(event) {
   if (category === "state") return { category, name: normalizeState(name) };
   if (category === "activity") {
     const normalized = ACTIVITIES.has(name) ? name : "other";
-    return { category, name: normalized, supported: normalized !== "other" };
+    return { category, name: normalized };
   }
   if (category === "attention") {
     if (name !== "permission") throw new Error(`Unknown attention name: ${event.name}`);
@@ -67,6 +67,10 @@ export function eventToLine(event) {
 
 export function stateLine(state) {
   return `AURA:STATE:${normalizeState(state).toUpperCase()}`;
+}
+
+export function heartbeatLine() {
+  return "AURA:HEARTBEAT";
 }
 
 export { ACTIVITIES, STATES };

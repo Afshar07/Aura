@@ -13,6 +13,7 @@ enum class Category
   State,
   Activity,
   Attention,
+  Heartbeat,
   Metric,
   Progress,
   Summary,

@@ -4,9 +4,6 @@ const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
 const configuredLogLevel = process.env.AURA_LOG_LEVEL?.toLowerCase() ?? "warn";
 const logLevel = LOG_LEVELS[configuredLogLevel] ?? LOG_LEVELS.warn;
 
-let lastState;
-let lastGenericEventKey;
-
 /**
  * Converts an OpenCode event into the small state vocabulary understood by the bridge.
  *
@@ -35,7 +32,7 @@ function log(level, message) {
 /**
  * Sends one state to the optional local bridge without allowing transport failures to escape.
  *
- * @param {"BUSY"|"IDLE"|"ERROR"} state
+ * @param {"BUSY"|"IDLE"|"ERROR"|"WORKING"} state
  * @returns {Promise<void>}
  */
 export async function sendState(state) {
@@ -60,9 +57,6 @@ export async function sendState(state) {
  * @returns {Promise<void>}
  */
 export async function sendEvent(event) {
-  const key = JSON.stringify(event);
-  if (key === lastGenericEventKey) return;
-
   try {
     const response = await fetch(`${BRIDGE_BASE_URL}/event`, {
       method: "POST",
@@ -76,37 +70,76 @@ export async function sendEvent(event) {
       return;
     }
 
-    lastGenericEventKey = key;
   } catch (error) {
     log("warn", `bridge unavailable (${error instanceof Error ? error.message : "request failed"}).`);
   }
 }
 
-function permissionEventsForEvent(event) {
-  if (event.type !== "permission.asked") return [];
-  return [
-    { category: "attention", name: "permission" },
-    { category: "state", name: "waiting" },
-  ];
+export function eventMappingsForEvent(event) {
+  if (event.type === "permission.asked") {
+    return [
+      { category: "attention", name: "permission" },
+      { category: "state", name: "waiting" },
+    ];
+  }
+
+  if (event.type === "permission.replied") {
+    return [{ category: "state", name: "working" }];
+  }
+
+  return [];
 }
 
-export const AuraActivityPlugin = async () => ({
-  event: ({ event }) => {
-    const permissionEvents = permissionEventsForEvent(event);
-    if (permissionEvents.length > 0) {
-      void (async () => {
-        for (const permissionEvent of permissionEvents) await sendEvent(permissionEvent);
-      })();
+/**
+ * Creates an OpenCode plugin with isolated lifecycle state and injectable bridge transports.
+ *
+ * @param {{ sendEvent?: (event: { category: string, name: string }) => Promise<void>, sendState?: (state: "BUSY"|"IDLE"|"ERROR"|"WORKING") => Promise<void> }} [transports]
+ * @returns {Promise<{ event: ({ event }: { event: { type?: string, properties?: { status?: { type?: string } } } }) => Promise<void> }>}
+ */
+export const createAuraActivityPlugin = async ({
+  sendEvent: sendEventTransport = sendEvent,
+  sendState: sendStateTransport = sendState,
+} = {}) => {
+  let lastState;
+  let lastEventKey;
+  let eventQueue = Promise.resolve();
+
+  const handleEvent = async (event) => {
+    const eventKey = JSON.stringify(event);
+    if (eventKey === lastEventKey) return;
+    lastEventKey = eventKey;
+
+    const mappings = eventMappingsForEvent(event);
+    if (mappings.length > 0) {
+      for (const mappedEvent of mappings) {
+        try {
+          await sendEventTransport(mappedEvent);
+        } catch (error) {
+          log("warn", `bridge unavailable (${error instanceof Error ? error.message : "request failed"}).`);
+        }
+      }
       return;
     }
-
-    if (event.type === "permission.replied") return;
 
     const state = stateForEvent(event);
     if (!state || state === lastState) return;
 
     lastState = state;
     log("info", `state ${state}.`);
-    void sendState(state);
-  },
-});
+    try {
+      await sendStateTransport(state);
+    } catch (error) {
+      log("warn", `bridge unavailable (${error instanceof Error ? error.message : "request failed"}).`);
+    }
+  };
+
+  return {
+    event: ({ event }) => {
+      const task = eventQueue.then(() => handleEvent(event));
+      eventQueue = task.catch(() => {});
+      return task.catch(() => {});
+    },
+  };
+};
+
+export const AuraActivityPlugin = createAuraActivityPlugin;

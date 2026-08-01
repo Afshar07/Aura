@@ -103,7 +103,7 @@ ParseResult parseLine(const char *line)
 
   char *tokens[5] = {};
   uint8_t tokenCount = 0;
-  if (!split(copy, tokens, tokenCount) || tokenCount < 3 ||
+  if (!split(copy, tokens, tokenCount) || tokenCount < 2 ||
       !equalsIgnoreCase(tokens[0], "AURA")) return result;
 
   if (equalsIgnoreCase(tokens[1], "STATE") || equalsIgnoreCase(tokens[1], "OPENCODE"))
@@ -144,6 +144,13 @@ ParseResult parseLine(const char *line)
   {
     result.category = Category::Attention;
     result.accepted = tokenCount == 3 && equalsIgnoreCase(tokens[2], "PERMISSION");
+    return result.accepted ? result : ParseResult{};
+  }
+
+  if (equalsIgnoreCase(tokens[1], "HEARTBEAT"))
+  {
+    result.category = Category::Heartbeat;
+    result.accepted = tokenCount == 2;
     return result.accepted ? result : ParseResult{};
   }
 

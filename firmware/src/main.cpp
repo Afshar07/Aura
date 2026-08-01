@@ -93,11 +93,19 @@ namespace
         auraFace.setState(AuraFace::State::Waiting);
         Serial.println("Aura event: attention/permission");
         break;
+      case aura_protocol::Category::Heartbeat:
+        break;
       default:
         break;
     }
 
-    lastSerialStateTime = millis();
+    if (event.category == aura_protocol::Category::State ||
+        event.category == aura_protocol::Category::Activity ||
+        event.category == aura_protocol::Category::Attention ||
+        event.category == aura_protocol::Category::Heartbeat)
+    {
+      lastSerialStateTime = millis();
+    }
   }
 
   void readSerialCommands()
