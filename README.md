@@ -49,6 +49,35 @@ The project favors:
 - C++
 - Git
 
+## OpenCode activity integration
+
+Aura can reflect OpenCode agent activity through a local cross-platform bridge:
+
+```text
+OpenCode plugin -> localhost HTTP -> Node.js bridge -> USB serial -> ESP32
+```
+
+The bridge supports Windows, Linux, and macOS through the `serialport` package. It automatically selects a Silicon Labs CP210x device or accepts an explicit `AURA_SERIAL_PORT` value.
+
+Install and start it from the repository root:
+
+```powershell
+cd bridge
+npm install
+npm start
+```
+
+On Linux, the current user may need access to the serial device, commonly through the `dialout` group. To override device discovery:
+
+```powershell
+$env:AURA_SERIAL_PORT = "COM3"
+npm start
+```
+
+Linux and macOS use the same variable with paths such as `/dev/ttyUSB0` or `/dev/cu.usbserial-*`.
+
+The global OpenCode plugin is installed at `~/.config/opencode/plugin/aura-activity.js`. Restart OpenCode after installing or changing it. The plugin sends busy, idle, and error states; if the bridge or OpenCode stops unexpectedly, the bridge and firmware independently fall back to idle.
+
 ## Vision
 
 Over time, Aura may grow into an ambient desktop interface for:

@@ -1,6 +1,7 @@
 #include "aura_face.h"
 
 #include <Arduino.h>
+#include <math.h>
 
 namespace
 {
@@ -29,6 +30,9 @@ constexpr unsigned long LOOK_INTERVAL_MAX_MS = 2400;
 constexpr unsigned long BLINK_INTERVAL_MIN_MS = 2200;
 constexpr unsigned long BLINK_INTERVAL_MAX_MS = 5500;
 constexpr unsigned long BLINK_DURATION_MS = 220;
+
+constexpr float LOADING_CYCLE_MS = 1100.0f;
+constexpr float TWO_PI_RADIANS = 6.28318530718f;
 }
 
 AuraFace::AuraFace(Adafruit_ST7789& display)
@@ -62,12 +66,22 @@ void AuraFace::update()
 {
   const unsigned long now = millis();
 
-  if (hasTimeElapsed(now, nextLookTime_))
+  if (state_ == State::Loading)
+  {
+    updateLoadingMovement(now);
+  }
+  else if (state_ == State::Error)
+  {
+    currentLookX_ = 0.0f;
+    currentLookY_ = 0.7f;
+  }
+  else if (hasTimeElapsed(now, nextLookTime_))
   {
     chooseNewLookDirection();
   }
 
   if (
+    state_ == State::Idle &&
     !isBlinking_ &&
     hasTimeElapsed(now, nextBlinkTime_)
   )
@@ -82,8 +96,30 @@ void AuraFace::update()
 
   lastFrameTime_ = now;
 
-  updateEyeMovement();
+  if (state_ == State::Idle)
+  {
+    updateEyeMovement();
+  }
+
   drawFace();
+}
+
+void AuraFace::setState(const State state)
+{
+  if (state_ == state)
+  {
+    return;
+  }
+
+  state_ = state;
+  isBlinking_ = false;
+
+  if (state_ == State::Idle)
+  {
+    const unsigned long now = millis();
+    nextLookTime_ = now + 500;
+    nextBlinkTime_ = now + 1500;
+  }
 }
 
 void AuraFace::chooseNewLookDirection()
@@ -264,4 +300,15 @@ bool AuraFace::hasTimeElapsed(
 )
 {
   return static_cast<long>(now - targetTime) >= 0;
+}
+
+void AuraFace::updateLoadingMovement(const unsigned long now)
+{
+  const float cycleProgress =
+    static_cast<float>(now % static_cast<unsigned long>(LOADING_CYCLE_MS)) /
+    LOADING_CYCLE_MS;
+
+  const float angle = cycleProgress * TWO_PI_RADIANS;
+  currentLookX_ = cosf(angle);
+  currentLookY_ = sinf(angle) * 0.75f;
 }

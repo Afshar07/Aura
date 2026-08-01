@@ -6,10 +6,18 @@
 class AuraFace
 {
 public:
+    enum class State
+    {
+        Idle,
+        Loading,
+        Error,
+    };
+
     explicit AuraFace(Adafruit_ST7789 &display);
 
     void begin();
     void update();
+    void setState(State state);
 
 private:
     static constexpr int CANVAS_WIDTH = 170;
@@ -30,10 +38,12 @@ private:
     unsigned long blinkStartTime_ = 0;
 
     bool isBlinking_ = false;
+    State state_ = State::Idle;
 
     void chooseNewLookDirection();
     void startBlink();
     void updateEyeMovement();
+    void updateLoadingMovement(unsigned long now);
 
     void drawFace();
 

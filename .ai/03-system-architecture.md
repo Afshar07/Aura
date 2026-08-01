@@ -88,3 +88,75 @@ aura/
 Not every directory needs to exist or contain files immediately.
 
 Never commit secrets such as Wi-Fi credentials. Use ignored local files or environment-specific configuration when credentials become necessary.
+
+### Current Repository Structure
+
+The current implemented structure is:
+
+```text
+aura/
+|-- .ai/
+|   |-- 01-project-vision.md
+|   |-- 02-hardware.md
+|   |-- 03-system-architecture.md
+|   |-- 04-roadmap.md
+|   |-- 05-engineering-standards.md
+|   |-- 06-agent-guidelines.md
+|   |-- aura-esp32-st7789-wiring-map.md
+|   `-- README.md
+|-- assets/
+|   `-- aura-logo.svg
+|-- bridge/
+|   |-- src/
+|   |   `-- index.js
+|   |-- package-lock.json
+|   `-- package.json
+|-- firmware/
+|   |-- include/
+|   |   |-- aura_boot_logo.h
+|   |   |-- aura_face.h
+|   |   `-- boot_animation.h
+|   |-- src/
+|   |   |-- aura_face.cpp
+|   |   |-- boot_animation.cpp
+|   |   `-- main.cpp
+|   |-- .gitignore
+|   `-- platformio.ini
+|-- .gitignore
+|-- aura.code-workspace
+`-- README.md
+```
+
+`firmware/` and the narrow OpenCode serial bridge are implemented application areas. `desktop/`, `docs/`, and `hardware/` remain part of the target shape and should be created only when an active milestone requires them.
+
+Current firmware responsibilities are intentionally small:
+
+- `main.cpp` configures SPI and the ST7789 display, plays the boot animation, and updates the face.
+- `boot_animation.*` owns the startup logo animation.
+- `aura_face.*` owns eye rendering, movement, and blinking.
+- `aura_boot_logo.h` stores the generated RGB565 boot-logo bitmap in program memory.
+- `platformio.ini` configures the generic `esp32dev` Arduino environment and Adafruit GFX/ST7789 dependencies.
+
+### OpenCode Activity Bridge
+
+OpenCode activity uses the current USB-first communication strategy:
+
+```text
+global OpenCode plugin
+  -> HTTP on 127.0.0.1:43110
+  -> persistent Node.js bridge
+  -> CP210x USB serial at 115200 baud
+  -> ESP32 face state
+```
+
+The host protocol is intentionally small:
+
+```text
+AURA:OPENCODE:BUSY
+AURA:OPENCODE:IDLE
+AURA:OPENCODE:ERROR
+```
+
+The bridge uses the cross-platform `serialport` package, discovers the CP210x adapter by USB vendor ID, and supports `AURA_SERIAL_PORT` as an explicit override. It owns the serial connection so individual OpenCode events do not repeatedly open the port and reset the ESP32.
+
+The OpenCode plugin is global rather than project-specific and listens for `session.status`, `session.idle`, and `session.error`. Bridge failures are ignored by the plugin so Aura cannot interrupt OpenCode. Heartbeat timeouts in both the bridge and firmware restore the idle face after a host crash or lost connection.

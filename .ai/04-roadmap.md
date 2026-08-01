@@ -84,6 +84,8 @@ This roadmap is ordered guidance, not permission to scaffold every future featur
 - Send a test notification
 - Render it on the device
 
+Current partial implementation: a global OpenCode plugin and cross-platform Node.js bridge send agent busy, idle, and error states over USB serial. This validates the communication path but does not complete the broader desktop-notification milestone.
+
 ## Later Candidates
 
 - INMP441 audio input

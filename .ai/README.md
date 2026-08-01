@@ -31,4 +31,6 @@ Introduce low-level detail gradually and only for the active milestone; avoid ov
 
 ## Current Project State
 
-Aura is at the beginning of development. The intended first stage is hardware inspection, followed by ESP32 bring-up. Later capabilities are product direction, not commitments to build everything now.
+Aura has an implemented PlatformIO firmware project, shared logo asset, and cross-platform Node.js USB serial bridge. ESP32 and ST7789 code initializes the display, plays a boot animation, and renders an animated face with idle, OpenCode loading, and error states. The exact current repository tree and responsibilities are recorded in `03-system-architecture.md`.
+
+The desktop app, sensors, input, lighting, audio, networking, enclosure, and PCB remain future work. Later capabilities are product direction, not commitments to build everything now.
